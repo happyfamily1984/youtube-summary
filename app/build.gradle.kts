@@ -19,8 +19,8 @@ android {
         applicationId = "com.happyfamily.ytsummary"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     // 서명 키(signing/)는 git에 올리지 않는다. 있으면 디버그·릴리스 모두 같은 키로 서명해 덮어쓰기 설치가 되게 한다.

@@ -91,6 +91,7 @@ fun HomeScreen(
             Card {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("유튜브 앱에서 영상의 [공유] → [유튜브 요약]을 누르세요.", fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text("또는 공유창에서 [링크 복사] 후 이 앱을 열면 자동으로 불러옵니다.", fontSize = 13.sp, color = C.sub)
                     Text("또는 위 칸에 링크를 붙여넣고 [불러오기]를 누르세요.", fontSize = 13.sp, color = C.sub)
                 }
             }

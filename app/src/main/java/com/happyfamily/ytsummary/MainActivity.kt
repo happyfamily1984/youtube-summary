@@ -1,5 +1,6 @@
 package com.happyfamily.ytsummary
 
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -37,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.happyfamily.ytsummary.data.Task
+import com.happyfamily.ytsummary.data.YouTube
 import com.happyfamily.ytsummary.ui.AppBackground
 import com.happyfamily.ytsummary.ui.AppTheme
 import com.happyfamily.ytsummary.ui.AppViewModel
@@ -64,10 +66,33 @@ class MainActivity : ComponentActivity() {
 
     private fun handle(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND) {
-            vm.open(intent.getStringExtra(Intent.EXTRA_TEXT))
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            vm.open(text)
             vm.goHome.value = true
+            YouTube.parseId(text)?.let { rememberClip(it) }
         }
     }
+
+    /**
+     * 유튜브 공유창에서 "링크 복사" 후 이 앱을 열면 복사한 영상을 자동으로 불러온다.
+     * (안드로이드 10+는 앱이 화면에 보일 때만 클립보드를 읽을 수 있어 포커스를 받을 때 확인)
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) return
+        val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = runCatching { cm.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString() }.getOrNull()
+        val id = YouTube.parseId(clip) ?: return
+        if (clip.isNullOrBlank() || !clip.contains("youtu")) return // 11자리 아무 글자는 무시
+        val prefs = getSharedPreferences("clip", MODE_PRIVATE)
+        if (prefs.getString("last", null) == id) return
+        rememberClip(id)
+        vm.open(clip)
+        vm.goHome.value = true
+    }
+
+    private fun rememberClip(id: String) =
+        getSharedPreferences("clip", MODE_PRIVATE).edit().putString("last", id).apply()
 }
 
 @Composable
