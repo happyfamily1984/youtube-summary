@@ -1,0 +1,14 @@
+.gradle/
+build/
+/local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+# 서명 키·비밀번호는 절대 커밋하지 않음
+*.jks
+*.keystore
+keystore.properties
+signing/
+dist/
+__pycache__/
