@@ -1,0 +1,95 @@
+name: process
+
+# 앱이 GitHub API로 실행한다. 결과는 data 브랜치 videos/{영상ID}/ 에 저장된다.
+run-name: "${{ inputs.task }} ${{ inputs.video_id }} [${{ inputs.request_id }}]"
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: 유튜브 영상 ID
+        required: true
+      task:
+        description: transcript / summary / instructions
+        required: true
+        type: choice
+        options: [transcript, summary, instructions]
+      request_id:
+        description: 앱이 결과를 찾기 위한 요청 번호
+        required: false
+        default: ""
+      language:
+        description: 결과 언어 (ko / en)
+        required: false
+        default: ko
+
+permissions:
+  contents: write
+
+concurrency:
+  group: process-${{ inputs.video_id }}-${{ inputs.task }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: data 브랜치 준비
+        run: |
+          git config --global user.name "yt-summary-bot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch origin data
+            git worktree add data FETCH_HEAD
+            cd data && git checkout -B data
+          else
+            git worktree add --orphan -b data data
+            cd data && printf '# 유튜브 요약 보관함\n' > README.md
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -q requests "youtube-transcript-api>=1.2"
+
+      - name: 처리
+        env:
+          DATA_DIR: data
+          VIDEO_ID: ${{ inputs.video_id }}
+          TASK: ${{ inputs.task }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          LANGUAGE: ${{ inputs.language }}
+          GEMINI_MODELS: ${{ vars.GEMINI_MODELS }}
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+          GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+          GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
+          GEMINI_API_KEY_6: ${{ secrets.GEMINI_API_KEY_6 }}
+          GEMINI_API_KEY_7: ${{ secrets.GEMINI_API_KEY_7 }}
+          GEMINI_API_KEY_8: ${{ secrets.GEMINI_API_KEY_8 }}
+          GEMINI_API_KEY_9: ${{ secrets.GEMINI_API_KEY_9 }}
+          GEMINI_API_KEY_10: ${{ secrets.GEMINI_API_KEY_10 }}
+        run: python scripts/process.py
+
+      - name: 결과 저장 (data 브랜치)
+        working-directory: data
+        run: |
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -q -m "${{ inputs.task }}: ${{ inputs.video_id }}"
+          for i in 1 2 3 4 5; do
+            if git fetch -q origin data 2>/dev/null; then
+              # 동시에 다른 영상이 저장한 경우: 내 변경을 우선해 다시 올림
+              git rebase -q -X theirs FETCH_HEAD || { git rebase --abort; sleep 2; continue; }
+            fi
+            git push -q origin HEAD:data && exit 0
+            sleep $((i * 3))
+          done
+          exit 1
