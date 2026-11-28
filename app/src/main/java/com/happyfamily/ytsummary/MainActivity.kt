@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT)
             vm.open(text)
             vm.goHome.value = true
-            YouTube.parseId(text)?.let { rememberClip(it) }
+            YouTube.parseLink(text)?.let { rememberClip(it.first) }
         }
     }
 
@@ -82,8 +82,8 @@ class MainActivity : ComponentActivity() {
         if (!hasFocus) return
         val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         val clip = runCatching { cm.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString() }.getOrNull()
-        val id = YouTube.parseId(clip) ?: return
-        if (clip.isNullOrBlank() || !clip.contains("youtu")) return // 11자리 아무 글자는 무시
+        if (clip.isNullOrBlank() || !Regex("youtu|instagram|tiktok").containsMatchIn(clip)) return // 영상 링크만
+        val id = YouTube.parseLink(clip)?.first ?: return
         val prefs = getSharedPreferences("clip", MODE_PRIVATE)
         if (prefs.getString("last", null) == id) return
         rememberClip(id)

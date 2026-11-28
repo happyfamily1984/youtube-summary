@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -51,6 +52,15 @@ fun Task.icon(): ImageVector = when (this) {
     Task.TRANSCRIPT -> Icons.Outlined.Description
     Task.SUMMARY -> Icons.Outlined.Notes
     Task.INSTRUCTIONS -> Icons.Outlined.Checklist
+    Task.PROMPT -> Icons.Outlined.Movie
+}
+
+/** 원본 영상 열기: 유튜브는 유튜브 앱, 인스타·틱톡 등은 해당 앱/브라우저 */
+fun openVideo(ctx: Context, item: VideoItem) {
+    if (item.isYouTube) return openYouTube(ctx, item.id)
+    runCatching {
+        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
 }
 
 /** 유튜브 앱으로 해당 영상 열기 (없으면 브라우저) */
@@ -66,6 +76,18 @@ fun openYouTube(ctx: Context, id: String) {
 
 @Composable
 fun Thumb(item: VideoItem, w: Dp, h: Dp, radius: Dp = 10.dp) {
+    if (item.thumbnail == null) {
+        // 인스타·틱톡 등: 플랫폼 색 블록
+        val brush = when (item.platform) {
+            "Instagram" -> androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFEDA75), Color(0xFFD62976), Color(0xFF4F5BD5)))
+            "TikTok" -> androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF111111), Color(0xFF25F4EE), Color(0xFFFE2C55)))
+            else -> androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF6A3CF5), Color(0xFFB896FF)))
+        }
+        Box(Modifier.size(w, h).clip(RoundedCornerShape(radius)).background(brush), contentAlignment = Alignment.Center) {
+            Text(item.platform, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
     AsyncImage(
         model = item.thumbnail,
         contentDescription = null,
@@ -81,7 +103,7 @@ fun VideoHeader(item: VideoItem, thumbW: Dp = 120.dp, titleSize: Float = 14.5f, 
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                item.title.ifBlank { "제목 불러오는 중…" },
+                item.displayTitle.ifBlank { "제목 불러오는 중…" },
                 fontSize = titleSize.sp, fontWeight = FontWeight.Bold, lineHeight = (titleSize * 1.38f).sp,
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
@@ -112,7 +134,7 @@ fun BigButton(
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
             if (state == BtnState.RUNNING) CircularProgressIndicator(Modifier.size(20.dp), color = fg, strokeWidth = 2.5.dp)
             else Icon(icon, null, tint = fg, modifier = Modifier.size(24.dp))
-            Text(label, color = fg, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
         }
         if (state == BtnState.DONE) Box(
             Modifier.align(Alignment.TopEnd).padding(7.dp).size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFF7CF2B0))
@@ -148,8 +170,8 @@ fun ChipButton(label: String, state: BtnState, modifier: Modifier = Modifier, yo
         when {
             youtube -> Icon(Icons.Outlined.SmartDisplay, "바로가기", tint = C.yt, modifier = Modifier.size(20.dp))
             state == BtnState.RUNNING -> CircularProgressIndicator(Modifier.size(16.dp), color = C.warn, strokeWidth = 2.dp)
-            state == BtnState.DONE -> Text(label, color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-            else -> Text("+ $label", color = C.muted, fontSize = 12.5.sp)
+            state == BtnState.DONE -> Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+            else -> Text("+$label", color = C.muted, fontSize = 11.5.sp, maxLines = 1, softWrap = false)
         }
     }
 }

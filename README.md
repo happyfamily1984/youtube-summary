@@ -8,9 +8,14 @@
 | 대본 | 휴대폰에서 유튜브 자막을 바로 추출. 자막이 없으면 GitHub Actions에서 Gemini가 영상을 듣고 받아쓰기 |
 | 요약 | GitHub Actions → Gemini 요약 |
 | 지시문 | GitHub Actions → Gemini가 "~하려면 → 단계"만 추출 (감탄·연결어·배경설명 제거) |
-| 바로가기 | 유튜브 앱으로 해당 영상 열기 |
+| 프롬프트 | 영상을 Gemini가 초 단위로 보고 스타일·인물·장소 시트, 초 단위 타임라인, 샷별 영어 생성 프롬프트(Veo/Sora/Kling용)를 작성 |
+| 바로가기 | 원본 영상 열기 (유튜브 앱 / 인스타 등) |
 
-결과 위치: `data` 브랜치 `videos/{영상ID}/meta.json, transcript.md, summary.md, instructions.md`
+유튜브 외에 **인스타그램·틱톡 등 영상 주소**도 받는다. 이런 영상은 Actions에서 yt-dlp로 내려받아 Gemini에 올려 처리한다.
+로그인이 필요한 영상은 시크릿 `YTDLP_COOKIES`에 쿠키(Netscape 형식)를 넣으면 된다.
+프롬프트 추출은 `gemini-2.5-pro`를 먼저 쓰고 한도가 차면 flash로 넘어간다 (Variables `GEMINI_PROMPT_MODELS`로 변경 가능).
+
+결과 위치: `data` 브랜치 `videos/{영상ID}/meta.json, transcript.md, summary.md, instructions.md, prompt.md`
 
 ## 처음 한 번 설정
 1. **Gemini 키 등록** – 저장소 Settings → Secrets and variables → Actions → New repository secret

@@ -120,9 +120,9 @@ class GitHub(private val s: Settings) {
 
     // ---------- 처리 워크플로 ----------
 
-    fun dispatch(videoId: String, task: Task, requestId: String, language: String) {
+    fun dispatch(videoId: String, url: String, task: Task, requestId: String, language: String) {
         val body = JSONObject().put("ref", s.workflowRef).put("inputs", JSONObject()
-            .put("video_id", videoId).put("task", task.key)
+            .put("video_id", videoId).put("url", url).put("task", task.key)
             .put("request_id", requestId).put("language", language))
         ok(call(req("/actions/workflows/process.yml/dispatches").post(body.toString().toRequestBody(json))),
             "GitHub 처리 시작")

@@ -65,18 +65,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 공유받은 텍스트 또는 붙여넣은 링크 */
     fun open(text: String?): Boolean {
-        val id = YouTube.parseId(text)
-        if (id == null) {
-            if (!text.isNullOrBlank()) toast("유튜브 링크를 찾지 못했습니다")
+        val (id, url) = YouTube.parseLink(text) ?: run {
+            if (!text.isNullOrBlank()) toast("영상 링크를 찾지 못했습니다")
             return false
         }
         _state.update { it.copy(currentId = id) }
         if (store.load(id) == null) {
-            store.saveMeta(VideoItem(id = id))
+            store.saveMeta(VideoItem(id = id, sourceUrl = url))
             reload()
         }
         val item = store.load(id)
-        if (item != null && item.title.isBlank()) {
+        if (item != null && item.title.isBlank() && item.isYouTube) {
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching { YouTube.fetchInfo(id) }.onSuccess { (title, channel) ->
                     lock.withLock {
@@ -103,9 +102,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = _state.value.settings
         viewModelScope.launch(Dispatchers.IO) {
             setRunning(id, task, "${task.label} 준비 중…")
+            val isYt = id.length == 11 // 휴대폰 자막 추출은 유튜브만
             try {
                 if (task == Task.TRANSCRIPT) {
-                    if (s.deviceTranscriptFirst) {
+                    if (s.deviceTranscriptFirst && isYt) {
                         setRunning(id, task, "자막 추출 중…")
                         val text = runCatching { YouTube.fetchTranscript(id, s.language) }.getOrNull()
                         if (text != null) {
@@ -114,14 +114,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             toast("대본을 추출했습니다")
                             return@launch
                         }
-                        setRunning(id, task, "자막이 없어 Gemini가 받아쓰는 중…")
                     }
+                    if (!isYt || s.deviceTranscriptFirst) setRunning(id, task, "Gemini가 영상을 듣고 받아쓰는 중…")
                     remote(id, task, regenerate)
                 } else {
                     // 요약 품질을 위해 대본을 먼저 확보해 저장소에 올려둔다
                     val local = store.load(id)
                     var transcript = local?.contents?.get(Task.TRANSCRIPT)
-                    if (transcript == null && s.deviceTranscriptFirst && local?.remote?.contains(Task.TRANSCRIPT) != true) {
+                    if (transcript == null && isYt && s.deviceTranscriptFirst && local?.remote?.contains(Task.TRANSCRIPT) != true) {
                         setRunning(id, task, "자막 확인 중…")
                         transcript = runCatching { YouTube.fetchTranscript(id, s.language) }.getOrNull()
                         if (transcript != null) saveResult(id, Task.TRANSCRIPT, transcript)
@@ -191,7 +191,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         val requestId = UUID.randomUUID().toString().take(8)
         try {
-            gh.dispatch(id, task, requestId, s.language)
+            gh.dispatch(id, store.load(id)?.url.orEmpty(), task, requestId, s.language)
         } catch (e: GitHubException) {
             if (e.code == 404) throw IllegalStateException(
                 "처리 워크플로(process.yml)를 찾지 못했습니다. '${s.workflowRef}' 브랜치에 있는지, 토큰에 Actions 권한이 있는지 확인하세요")
@@ -211,6 +211,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (sha != null && sha != oldSha) {
                 gh.getFile(path)?.let { saveResult(id, task, it.first, remote = true) }
                 if (task != Task.TRANSCRIPT) refreshTranscriptFlag(gh, id)
+                refreshMeta(gh, id)
                 loadKeyStatus()
                 return
             }
@@ -231,6 +232,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         throw IllegalStateException("시간이 너무 오래 걸립니다. 잠시 후 보관함에서 확인하세요")
+    }
+
+    /** 처리 서버가 알아낸 제목(인스타·틱톡 등)을 가져온다 */
+    private suspend fun refreshMeta(gh: GitHub, id: String) {
+        val local = store.load(id) ?: return
+        if (local.title.isNotBlank()) return
+        val o = runCatching { gh.getFile("videos/$id/meta.json")?.first?.let { JSONObject(it) } }.getOrNull() ?: return
+        lock.withLock {
+            store.load(id)?.let { store.saveMeta(it.copy(title = o.optString("title"), channel = o.optString("channel"))) }
+        }
+        reload()
     }
 
     private suspend fun refreshTranscriptFlag(gh: GitHub, id: String) {
@@ -285,7 +297,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             ?: VideoItem(id = id)
                         lock.withLock { store.saveMeta(base.copy(remote = remote)) }
                     } else {
-                        lock.withLock { store.saveMeta(local.copy(remote = remote)) }
+                        var upd = local.copy(remote = remote)
+                        if (local.title.isBlank()) runCatching { gh.getFile("videos/$id/meta.json") }.getOrNull()?.let { (t, _) ->
+                            runCatching { JSONObject(t) }.getOrNull()?.let { o ->
+                                upd = upd.copy(title = o.optString("title"), channel = o.optString("channel"))
+                            }
+                        }
+                        lock.withLock { store.saveMeta(upd) }
                     }
                 }
                 // 저장소에서 지워진 항목은 원격 표시만 해제 (기기 내용은 유지)

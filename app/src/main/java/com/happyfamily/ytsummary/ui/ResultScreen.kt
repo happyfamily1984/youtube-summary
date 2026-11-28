@@ -72,12 +72,12 @@ fun ResultScreen(st: UiState, vm: AppViewModel, id: String, initial: Task, onBac
 
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { openYouTube(ctx, id) }.padding(vertical = 4.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { openVideo(ctx, item) }.padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Thumb(item, 64.dp, 36.dp, 7.dp)
                 Spacer(Modifier.size(10.dp))
-                Text(item.title.ifBlank { id }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 18.sp)
+                Text(item.displayTitle.ifBlank { id }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 18.sp)
             }
             // 대본 / 요약 / 지시문 전환
             Row(
@@ -92,7 +92,7 @@ fun ResultScreen(st: UiState, vm: AppViewModel, id: String, initial: Task, onBac
                             .clickable { task = t }.padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(t.label, fontSize = 13.5.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        Text(t.label, fontSize = 13.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
                             color = if (on) C.ink else C.sub)
                     }
                 }

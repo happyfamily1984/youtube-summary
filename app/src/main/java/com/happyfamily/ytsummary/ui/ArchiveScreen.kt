@@ -67,7 +67,7 @@ fun ArchiveScreen(st: UiState, vm: AppViewModel, ui: ArchiveUi, onOpenResult: (S
     val ctx = LocalContext.current
     var confirmDelete by remember { mutableStateOf(false) }
     val list = st.items.filter { it.hasAny }
-        .filter { ui.query.isBlank() || it.title.contains(ui.query, ignoreCase = true) }
+        .filter { ui.query.isBlank() || it.displayTitle.contains(ui.query, ignoreCase = true) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         if (ui.selecting) {
@@ -123,7 +123,7 @@ fun ArchiveScreen(st: UiState, vm: AppViewModel, ui: ArchiveUi, onOpenResult: (S
                             Thumb(v, 112.dp, 63.dp, 12.dp)
                             Spacer(Modifier.size(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(v.title.ifBlank { v.id }, fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 19.sp,
+                                Text(v.displayTitle.ifBlank { v.id }, fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 19.sp,
                                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text(dateText(v.createdAt) + if (v.channel.isNotBlank()) " · ${v.channel}" else "",
                                     fontSize = 12.sp, color = C.sub, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -134,7 +134,7 @@ fun ArchiveScreen(st: UiState, vm: AppViewModel, ui: ArchiveUi, onOpenResult: (S
                                 modifier = Modifier.padding(start = 6.dp).size(22.dp),
                             )
                         }
-                        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             Task.entries.forEach { t ->
                                 val state = when {
                                     st.isRunning(v.id, t) -> BtnState.RUNNING
@@ -145,7 +145,7 @@ fun ArchiveScreen(st: UiState, vm: AppViewModel, ui: ArchiveUi, onOpenResult: (S
                                     if (state == BtnState.NONE) vm.run(v.id, t) else onOpenResult(v.id, t)
                                 }
                             }
-                            ChipButton("바로가기", BtnState.NONE, Modifier.weight(1f), youtube = true) { openYouTube(ctx, v.id) }
+                            ChipButton("바로가기", BtnState.NONE, Modifier.weight(0.75f), youtube = true) { openVideo(ctx, v) }
                         }
                     }
                 }

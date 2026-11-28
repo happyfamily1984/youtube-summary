@@ -24,6 +24,25 @@ object YouTube {
         return if (Regex("^[A-Za-z0-9_-]{11}$").matches(t)) t else null
     }
 
+    /**
+     * 유튜브·인스타그램·틱톡 등 영상 주소 → (저장용 ID, 원본 주소).
+     * 유튜브는 11자리 영상 ID, 나머지는 접두어를 붙인 ID.
+     */
+    fun parseLink(text: String?): Pair<String, String>? {
+        if (text.isNullOrBlank()) return null
+        parseId(text)?.let { return it to "https://www.youtube.com/watch?v=$it" }
+        val url = Regex("""https?://\S+""").find(text)?.value?.trimEnd('.', ',', ')', '"', '\'') ?: return null
+        Regex("""instagram\.com/(?:[^/]+/)?(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)""").find(url)?.let {
+            val code = it.groupValues[1]
+            return "ig_$code" to "https://www.instagram.com/reel/$code/"
+        }
+        Regex("""tiktok\.com/.*/video/(\d+)""").find(url)?.let { return "tt_${it.groupValues[1]}" to url.substringBefore('?') }
+        val clean = url.substringBefore("?igsh").substringBefore("?si=")
+        val hash = java.security.MessageDigest.getInstance("SHA-1").digest(clean.toByteArray())
+            .joinToString("") { "%02x".format(it) }.take(10)
+        return "v_$hash" to clean
+    }
+
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)

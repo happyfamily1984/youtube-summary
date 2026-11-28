@@ -13,7 +13,11 @@ on:
         description: transcript / summary / instructions
         required: true
         type: choice
-        options: [transcript, summary, instructions]
+        options: [transcript, summary, instructions, prompt]
+      url:
+        description: 원본 영상 주소 (유튜브 외 영상)
+        required: false
+        default: ""
       request_id:
         description: 앱이 결과를 찾기 위한 요청 번호
         required: false
@@ -33,7 +37,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -54,12 +58,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: pip install -q requests "youtube-transcript-api>=1.2"
+      - run: |
+          pip install -q requests "youtube-transcript-api>=1.2" yt-dlp
+          sudo apt-get install -y -qq ffmpeg >/dev/null || true
 
       - name: 처리
         env:
           DATA_DIR: data
           VIDEO_ID: ${{ inputs.video_id }}
+          VIDEO_URL: ${{ inputs.url }}
+          GEMINI_PROMPT_MODELS: ${{ vars.GEMINI_PROMPT_MODELS }}
+          YTDLP_COOKIES: ${{ secrets.YTDLP_COOKIES }}
           TASK: ${{ inputs.task }}
           REQUEST_ID: ${{ inputs.request_id }}
           LANGUAGE: ${{ inputs.language }}

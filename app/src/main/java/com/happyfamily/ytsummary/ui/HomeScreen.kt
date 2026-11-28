@@ -69,7 +69,7 @@ fun HomeScreen(
         OutlinedTextField(
             value = input, onValueChange = { input = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("유튜브 링크 붙여넣기") },
+            placeholder = { Text("유튜브·인스타 링크 붙여넣기") },
             leadingIcon = { Icon(Icons.Outlined.Link, null, tint = C.sub) },
             trailingIcon = {
                 Button(
@@ -99,7 +99,7 @@ fun HomeScreen(
             Card {
                 Column {
                     VideoHeader(current)
-                    Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Task.entries.forEach { t ->
                             val state = when {
                                 st.isRunning(current.id, t) -> BtnState.RUNNING
@@ -111,7 +111,7 @@ fun HomeScreen(
                             }
                         }
                         BigButton("바로가기", Icons.Outlined.SmartDisplay, BtnState.NONE, Modifier.weight(1f), youtube = true) {
-                            openYouTube(ctx, current.id)
+                            openVideo(ctx, current)
                         }
                     }
                     Task.entries.forEach { t ->
@@ -131,7 +131,7 @@ fun HomeScreen(
                         Spacer(Modifier.size(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                v.title.ifBlank { v.id }, fontSize = 13.5.sp, fontWeight = FontWeight.Bold,
+                                v.displayTitle.ifBlank { v.id }, fontSize = 13.5.sp, fontWeight = FontWeight.Bold,
                                 maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 19.sp,
                             )
                             Text(dateText(v.createdAt), fontSize = 12.sp, color = C.sub, modifier = Modifier.padding(top = 3.dp))
