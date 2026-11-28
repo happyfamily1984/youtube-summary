@@ -63,6 +63,11 @@ class Store(context: Context) {
             .apply()
     }
 
+    /** 수집함에서 숨긴 영상 (inbox 글에 남아 있어도 다시 넣지 않음) */
+    var dismissed: Set<String>
+        get() = prefs.getStringSet("dismissed", emptySet()) ?: emptySet()
+        set(v) = prefs.edit().putStringSet("dismissed", v).apply()
+
     var lastSync: Long
         get() = prefs.getLong("lastSync", 0)
         set(v) = prefs.edit().putLong("lastSync", v).apply()

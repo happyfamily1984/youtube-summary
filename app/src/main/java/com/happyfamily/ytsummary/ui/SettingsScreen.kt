@@ -124,7 +124,7 @@ fun SettingsScreen(st: UiState, vm: AppViewModel, onBack: () -> Unit) {
                     }
                 }
             }
-            Text("버전 0.2.0", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(bottom = 24.dp))
+            Text("버전 0.3.0", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(bottom = 24.dp))
         }
     }
 }

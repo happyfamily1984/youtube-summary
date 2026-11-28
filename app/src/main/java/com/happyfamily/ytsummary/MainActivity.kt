@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -44,6 +45,7 @@ import com.happyfamily.ytsummary.ui.AppTheme
 import com.happyfamily.ytsummary.ui.AppViewModel
 import com.happyfamily.ytsummary.ui.ArchiveScreen
 import com.happyfamily.ytsummary.ui.ArchiveUi
+import com.happyfamily.ytsummary.ui.CollectScreen
 import com.happyfamily.ytsummary.ui.C
 import com.happyfamily.ytsummary.ui.HomeScreen
 import com.happyfamily.ytsummary.ui.ResultScreen
@@ -106,6 +108,7 @@ fun App(vm: AppViewModel, exit: () -> Unit) {
     var settings by rememberSaveable { mutableStateOf(false) }
     var askExit by remember { mutableStateOf(false) }
     val archiveUi = remember { ArchiveUi() }
+    val collectUi = remember { ArchiveUi() }
 
     // 공유로 들어오면 홈으로
     LaunchedEffect(goHome) {
@@ -121,7 +124,8 @@ fun App(vm: AppViewModel, exit: () -> Unit) {
             resultId != null -> resultId = null
             settings -> settings = false
             tab == 1 && archiveUi.back() -> Unit
-            tab == 1 -> tab = 0
+            tab == 2 && collectUi.back() -> Unit
+            tab != 0 -> tab = 0
             else -> askExit = true
         }
     }
@@ -136,10 +140,11 @@ fun App(vm: AppViewModel, exit: () -> Unit) {
                 else -> Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
                         if (tab == 0) HomeScreen(st, vm, openResult, onSettings = { settings = true }, onShowAll = { tab = 1 })
-                        else ArchiveScreen(st, vm, archiveUi, openResult)
+                        else if (tab == 1) ArchiveScreen(st, vm, archiveUi, openResult)
+                        else CollectScreen(st, vm, collectUi, openResult)
                     }
                     NavigationBar(containerColor = Color.White, tonalElevation = 0.dp_()) {
-                        listOf("홈" to Icons.Outlined.Home, "보관함" to Icons.Outlined.Inventory2).forEachIndexed { i, (label, icon) ->
+                        listOf("홈" to Icons.Outlined.Home, "보관함" to Icons.Outlined.Inventory2, "수집함" to Icons.Outlined.TravelExplore).forEachIndexed { i, (label, icon) ->
                             NavigationBarItem(
                                 selected = tab == i, onClick = { tab = i },
                                 icon = { Icon(icon, label) },

@@ -17,6 +17,13 @@
 
 결과 위치: `data` 브랜치 `videos/{영상ID}/meta.json, transcript.md, summary.md, instructions.md, prompt.md`
 
+## 수집함 (inbox)
+`data` 브랜치 `inbox/` 폴더에 영상 주소가 적힌 글(.md/.txt)을 올리면, 앱이 동기화할 때 읽어 **수집함** 탭에 주제별로 넣는다.
+- 형식: `# 주제: …` 제목 아래 `- 주소 | 메모` (느슨해도 됨. 주소가 있는 줄은 모두 읽음)
+- 여러 개 선택 → "모두 요약 / 모두 프롬프트" 등 일괄 실행
+- 앱에서 + 로 붙여넣은 링크는 `inbox/app-added.md`에 기록
+- 에이전트 AI에게 수집을 맡기는 프롬프트: [`agent/collect-prompt.md`](agent/collect-prompt.md)
+
 ## 처음 한 번 설정
 1. **Gemini 키 등록** – 저장소 Settings → Secrets and variables → Actions → New repository secret
    - 이름 `GEMINI_API_KEYS`, 값에 키를 한 줄에 하나씩 여러 개 (또는 `GEMINI_API_KEY_1` ~ `GEMINI_API_KEY_10`)

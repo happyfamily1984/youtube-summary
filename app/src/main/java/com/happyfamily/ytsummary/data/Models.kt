@@ -21,6 +21,10 @@ data class VideoItem(
     /** 유튜브가 아닌 영상(인스타·틱톡 등)의 원본 주소 */
     val sourceUrl: String = "",
     val createdAt: Long = System.currentTimeMillis(),
+    /** 저장소 inbox/ 수집 글에서 들어온 영상 */
+    val collected: Boolean = false,
+    val topic: String = "",
+    val memo: String = "",
     /** 기기에 저장된 결과 내용 */
     val contents: Map<Task, String> = emptyMap(),
     /** GitHub 저장소에 존재하는 결과 (내용은 열 때 내려받음) */
@@ -43,6 +47,7 @@ data class VideoItem(
     fun metaJson(): JSONObject = JSONObject()
         .put("id", id).put("title", title).put("channel", channel)
         .put("url", url).put("platform", platform).put("createdAt", createdAt)
+        .put("collected", collected).put("topic", topic).put("memo", memo)
 
     companion object {
         fun fromMeta(o: JSONObject) = VideoItem(
@@ -51,6 +56,9 @@ data class VideoItem(
             channel = o.optString("channel"),
             sourceUrl = o.optString("url"),
             createdAt = o.optLong("createdAt", System.currentTimeMillis()),
+            collected = o.optBoolean("collected"),
+            topic = o.optString("topic"),
+            memo = o.optString("memo"),
         )
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.happyfamily.ytsummary.data.GitHub
 import com.happyfamily.ytsummary.data.GitHubException
+import com.happyfamily.ytsummary.data.Inbox
 import com.happyfamily.ytsummary.data.KeyStatus
 import com.happyfamily.ytsummary.data.Running
 import com.happyfamily.ytsummary.data.Settings
@@ -310,17 +311,107 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 store.loadAll().filter { it.id !in byId && it.remote.isNotEmpty() }.forEach {
                     lock.withLock { store.saveMeta(it.copy(remote = emptySet())) }
                 }
+                val newCount = syncInbox(gh, paths)
                 store.lastSync = System.currentTimeMillis()
                 _state.update { it.copy(lastSync = store.lastSync) }
                 reload()
                 loadKeyStatus()
-                if (!quiet) toast("동기화 완료 · 영상 ${byId.size}개")
+                if (newCount > 0) toast("새로 수집된 영상 ${newCount}개")
+                else if (!quiet) toast("동기화 완료 · 영상 ${byId.size}개")
             } catch (e: Exception) {
                 if (!quiet) toast("동기화 실패: ${e.message}")
             } finally {
                 _state.update { it.copy(syncing = false) }
             }
         }
+    }
+
+    // ---------- 수집함 (inbox/) ----------
+
+    /** inbox/ 글을 읽어 수집된 영상으로 넣는다. 새로 들어온 개수 반환 */
+    private suspend fun syncInbox(gh: GitHub, paths: List<String>): Int {
+        val files = paths.filter { it.startsWith("${Inbox.DIR}/") && (it.endsWith(".md") || it.endsWith(".txt")) }
+        val dismissed = store.dismissed
+        var added = 0
+        for (f in files) {
+            val text = runCatching { gh.getFile(f)?.first }.getOrNull() ?: continue
+            for (e in Inbox.parse(text, f)) {
+                if (e.id in dismissed) continue
+                lock.withLock {
+                    val local = store.load(e.id)
+                    if (local == null) {
+                        store.saveMeta(VideoItem(id = e.id, sourceUrl = e.url, collected = true, topic = e.topic, memo = e.memo))
+                        added++
+                    } else if (!local.collected || local.memo.isBlank() || local.topic.isBlank()) {
+                        store.saveMeta(local.copy(collected = true, topic = local.topic.ifBlank { e.topic },
+                            memo = local.memo.ifBlank { e.memo }))
+                    }
+                }
+            }
+        }
+        if (files.isNotEmpty()) reload()
+        // 유튜브 제목은 바로 채운다
+        store.loadAll().filter { it.collected && it.isYouTube && it.title.isBlank() }.take(30).forEach { v ->
+            runCatching { YouTube.fetchInfo(v.id) }.getOrNull()?.let { (t, c) ->
+                lock.withLock { store.load(v.id)?.let { store.saveMeta(it.copy(title = t, channel = c)) } }
+            }
+        }
+        reload()
+        return added
+    }
+
+    /** 앱에서 링크 여러 개를 붙여넣어 수집함에 추가 (저장소 inbox/app-added.md 에도 기록) */
+    fun addLinks(text: String, topic: String) {
+        val t = topic.trim().ifBlank { "앱에서 추가" }
+        val entries = Inbox.parse("# $t\n$text", "inbox/app-added.md")
+        if (entries.isEmpty()) { toast("영상 링크를 찾지 못했습니다"); return }
+        val s = _state.value.settings
+        viewModelScope.launch(Dispatchers.IO) {
+            store.dismissed = store.dismissed - entries.map { it.id }.toSet()
+            lock.withLock {
+                entries.forEach { e ->
+                    val local = store.load(e.id)
+                    store.saveMeta((local ?: VideoItem(id = e.id, sourceUrl = e.url))
+                        .copy(collected = true, topic = e.topic, memo = local?.memo?.ifBlank { e.memo } ?: e.memo))
+                }
+            }
+            reload()
+            toast("${entries.size}개를 수집함에 넣었습니다")
+            if (s.connected) runCatching {
+                val gh = GitHub(s)
+                gh.ensureDataBranch()
+                val path = "${Inbox.DIR}/app-added.md"
+                val old = gh.getFile(path)?.first.orEmpty()
+                val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.KOREA).format(java.util.Date())
+                val block = "\n# $t\n<!-- $date 앱에서 추가 -->\n" + entries.joinToString("\n") {
+                    "- ${it.url}" + if (it.memo.isNotBlank()) " | ${it.memo}" else ""
+                } + "\n"
+                gh.putFile(path, old + block, "수집: ${entries.size}개 ($t)")
+            }.onFailure { toast("저장소 기록 실패: ${it.message}") }
+        }
+    }
+
+    /** 수집함에서 숨기기 (결과가 없는 영상은 기기에서도 지움) */
+    fun dismiss(ids: Set<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            store.dismissed = store.dismissed + ids
+            lock.withLock {
+                ids.forEach { id ->
+                    val v = store.load(id) ?: return@forEach
+                    if (v.hasAny) store.saveMeta(v.copy(collected = false)) else store.delete(id)
+                }
+            }
+            reload()
+            toast("${ids.size}개를 수집함에서 뺐습니다")
+        }
+    }
+
+    /** 여러 영상에 같은 작업을 한꺼번에 실행 (이미 있는 결과는 건너뜀) */
+    fun runMany(ids: Set<String>, task: Task) {
+        val targets = _state.value.items.filter { it.id in ids && !it.has(task) }
+        if (targets.isEmpty()) { toast("선택한 영상은 모두 ${task.label}이(가) 있습니다"); return }
+        targets.forEach { run(it.id, task) }
+        toast("${targets.size}개 영상의 ${task.label} 작업을 시작했습니다")
     }
 
     private fun loadKeyStatus() {
@@ -349,6 +440,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = _state.value.settings
         viewModelScope.launch(Dispatchers.IO) {
             ids.forEach { store.delete(it) }
+            store.dismissed = store.dismissed + ids // 수집 글에 남아 있어도 다시 들어오지 않게
             if (_state.value.currentId in ids) _state.update { it.copy(currentId = null) }
             reload()
             if (s.connected) {
